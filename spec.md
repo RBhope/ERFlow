@@ -160,3 +160,71 @@ When ERFlow generates a RoutingRecommendation
 Then ERFlow displays the recommended ERFacility
 And shows the TriagePriority, CapacityStatus, and travel time used in the routing review
 ```
+
+# Nonfunctional Requirements
+
+The following requirements are listed in priority order for the ERFlow
+course prototype. The proposed performance target is a project target,
+not a validated clinical standard.
+
+**NFR-001 — Safety and human control (Priority 1).**
+Urgency and routing recommendations shall be clearly identified as
+advisory wherever they are displayed. The system shall not assign a
+final triage priority without an authorized clinician's confirmation
+or override. Verify using AC-004, AC-005, AC-008, and AC-009.
+
+Trace: Goals 3–4; FR-004, FR-006, FR-007.
+
+**NFR-002 — Privacy and access control (Priority 2).**
+The prototype shall use synthetic patient data only. It shall restrict
+assessment entry and reassessment, priority confirmation and override,
+and routing review to their respective modeled roles. An attempt by a
+role without permission shall be rejected. Verify using test accounts
+for each modeled role.
+
+Trace: Domain Model actors; FR-001, FR-004, FR-005, FR-006.
+
+**NFR-003 — Data integrity (Priority 3).**
+After a successful save, each assessment and clinician-selected
+priority shall remain associated with the correct PatientEncounter.
+An overridden priority shall be saved with its recorded reason. Verify
+by reopening encounters after assessment, confirmation, and override.
+
+Trace: FR-001, FR-004; AC-001, AC-004, AC-005.
+
+**NFR-004 — Reliability and failure handling (Priority 4).**
+If urgency recommendation generation fails or is unavailable, the
+system shall display an error and retain the successfully submitted
+assessment. The failure shall not cause the system to assign or change
+a final triage priority. Verify by simulating a recommendation failure
+during an initial assessment and a reassessment.
+
+Trace: Goals 1, 3–4; FR-001, FR-005, FR-007; AC-007, AC-009.
+
+**NFR-005 — Explainability and usability (Priority 5).**
+When an urgency recommendation is displayed, its advisory status and
+the main patient factors that influenced it shall be visible alongside
+the recommendation. Verify using a test assessment with known
+contributing factors.
+
+Trace: Goal 3; FR-002, FR-003; AC-002, AC-003.
+
+**NFR-006 — Responsiveness (Priority 6).**
+Using a locally available test dataset and a simulated recommendation
+provider, the prototype shall display a recommendation or an error
+within five seconds for at least 95 out of 100 sequential test requests.
+This is a proposed prototype target and does not establish performance
+for a deployed ML model.
+
+Trace: Goal 3; FR-002; AC-002.
+
+**NFR-007 — Testability and maintainability (Priority 7).**
+The urgency recommendation function shall be separable from assessment
+storage and clinical priority handling, so that a simulated provider
+can be substituted for testing without changing those functions. Verify
+by using a simulated provider to test assessment, recommendation, and
+clinical priority workflows. A simulated provider alone does not
+fulfill the ML model requirement in FR-007.
+
+Trace: FR-001, FR-004, FR-007; Description.
+
