@@ -1,22 +1,34 @@
-"""
-URL configuration for erflow project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
-from django.contrib import admin
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
+
+from modules import user_interface
+
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(
+        "api/encounters/<str:encounter_id>/assessments",
+        csrf_exempt(user_interface.save_assessment),
+    ),
+    path(
+        "api/encounters/<str:encounter_id>/assessment",
+        csrf_exempt(user_interface.get_assessment),
+    ),
+    path(
+        "api/encounters/<str:encounter_id>/recommendations",
+        csrf_exempt(user_interface.generate_recommendation),
+    ),
+    path(
+        "api/encounters/<str:encounter_id>/recommendation",
+        csrf_exempt(user_interface.get_recommendation),
+    ),
+    path(
+        "api/encounters/<str:encounter_id>/priority",
+        csrf_exempt(user_interface.record_priority),
+    ),
+    path("api/queue", csrf_exempt(user_interface.get_queue)),
+    path(
+        "api/encounters/<str:encounter_id>/routing",
+        csrf_exempt(user_interface.review_routing),
+    ),
+    path("api/facilities/capacity", csrf_exempt(user_interface.get_capacity)),
 ]
