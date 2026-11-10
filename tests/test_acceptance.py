@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -44,6 +45,16 @@ class FakeRecommendationProvider(RecommendationProvider):
 class UnavailableRecommendationProvider(RecommendationProvider):
     def generate(self, assessment: Mapping[str, Any]) -> Mapping[str, Any]:
         raise RuntimeError("provider unavailable")
+
+
+class AlternatePriorityProvider(RecommendationProvider):
+    def generate(self, assessment: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {
+            "suggested_priority": "priority-other",
+            "factors": ["alternate opaque test factor"],
+            "warnings": ["prototype decision support"],
+            "uncertainty": "available",
+        }
 
 
 @pytest.fixture
@@ -103,7 +114,89 @@ def routing_payload() -> dict[str, Any]:
     }
 
 
+def seed_encounter(store: FakeRecordStore) -> None:
+    store.save(
+        "patient_encounter",
+        {"id": "E-1001", "encounter_id": "E-1001", "status": "open"},
+    )
+
+
+def seed_assessment(store: FakeRecordStore) -> None:
+    seed_encounter(store)
+    store.save(
+        "triage_assessment",
+        {
+            "id": "A-1001",
+            "assessment_id": "A-1001",
+            "encounter_id": "E-1001",
+            "status": "stored",
+        },
+    )
+
+
+def seed_recommendation(store: FakeRecordStore) -> None:
+    seed_assessment(store)
+    store.save(
+        "urgency_recommendation",
+        {
+            "id": "R-1001",
+            "recommendation_id": "R-1001",
+            "encounter_id": "E-1001",
+            "assessment_id": "A-1001",
+            "suggested_priority": "priority-a",
+            "advisory": True,
+            "factors": ["heart_rate=110 bpm", "symptom=chest pain"],
+            "warnings": ["prototype decision support"],
+            "uncertainty": "available",
+        },
+    )
+
+
+def seed_approved_priority(store: FakeRecordStore) -> None:
+    seed_encounter(store)
+    store.save(
+        "triage_priority",
+        {
+            "id": "TP-1001",
+            "encounter_id": "E-1001",
+            "triage_priority": "priority-a",
+        },
+    )
+
+
+def seed_waiting_encounter(store: FakeRecordStore) -> None:
+    seed_approved_priority(store)
+    store.save(
+        "patient_queue",
+        {"id": "Q-1001", "encounter_id": "E-1001", "status": "waiting"},
+    )
+
+
+def seed_routing_recommendation(store: FakeRecordStore) -> None:
+    seed_approved_priority(store)
+    store.save(
+        "routing_recommendation",
+        {
+            "id": "RR-1001",
+            "routing_recommendation_id": "RR-1001",
+            "encounter_id": "E-1001",
+            "advisory": True,
+            "automatic_transfer": False,
+            "considered_inputs": {
+                "triage_priority": "priority-a",
+                "facilities": routing_payload()["facilities"],
+                "travel_times_minutes": routing_payload()["travel_times_minutes"],
+            },
+        },
+    )
+
+
+def records_snapshot(store: FakeRecordStore) -> dict[str, list[dict[str, Any]]]:
+    return copy.deepcopy(store.records)
+
+
 def test_AC_001_record_triage_assessment(client: Client, store: FakeRecordStore):
+    seed_encounter(store)
     response = post_json(
         client, "/api/v1/encounters/E-1001/assessments", assessment_payload()
     )
@@ -119,6 +212,7 @@ def test_AC_001_record_triage_assessment(client: Client, store: FakeRecordStore)
 def test_AC_002_display_advisory_recommendation(
     client: Client, store: FakeRecordStore
 ):
+    seed_assessment(store)
     response = post_json(
         client,
         "/api/v1/encounters/E-1001/urgency-recommendations",
@@ -141,7 +235,25 @@ def test_AC_002_display_advisory_recommendation(
     assert latest.json()["recommendation_id"] == body["recommendation_id"]
 
 
+def test_AC_002_outside_unknown_assessment_creates_nothing(
+    client: Client, store: FakeRecordStore
+):
+    seed_encounter(store)
+    before = records_snapshot(store)
+
+    response = post_json(
+        client,
+        "/api/v1/encounters/E-1001/urgency-recommendations",
+        {"assessment_id": "A-9999"},
+    )
+
+    assert store.records == before
+    assert response.status_code == 404
+
+
 def test_AC_003_explain_recommendation(client: Client, store: FakeRecordStore):
+    seed_recommendation(store)
+    before = records_snapshot(store)
     response = client.get(
         "/api/v1/encounters/E-1001/urgency-recommendations/R-1001/explanation"
     )
@@ -152,12 +264,27 @@ def test_AC_003_explain_recommendation(client: Client, store: FakeRecordStore):
     assert body["factors"] == ["heart_rate=110 bpm", "symptom=chest pain"]
     assert body["warnings"] == ["prototype decision support"]
     assert "uncertainty" in body
-    assert store.records == {}
+    assert store.records == before
+
+
+def test_AC_003_outside_unknown_recommendation_changes_nothing(
+    client: Client, store: FakeRecordStore
+):
+    seed_recommendation(store)
+    before = records_snapshot(store)
+
+    response = client.get(
+        "/api/v1/encounters/E-1001/urgency-recommendations/R-9999/explanation"
+    )
+
+    assert store.records == before
+    assert response.status_code == 404
 
 
 def test_AC_004A_confirm_recommended_priority(
     client: Client, store: FakeRecordStore
 ):
+    seed_recommendation(store)
     response = put_json(
         client,
         "/api/v1/encounters/E-1001/triage-priority",
@@ -181,6 +308,7 @@ def test_AC_004A_confirm_recommended_priority(
 
 
 def test_AC_004B_override_with_reason(client: Client, store: FakeRecordStore):
+    seed_recommendation(store)
     reason = "clinical assessment indicates different urgency"
     response = put_json(
         client,
@@ -204,6 +332,8 @@ def test_AC_004B_override_with_reason(client: Client, store: FakeRecordStore):
 def test_AC_004C_reject_override_without_reason(
     client: Client, store: FakeRecordStore
 ):
+    seed_recommendation(store)
+    before = records_snapshot(store)
     response = put_json(
         client,
         "/api/v1/encounters/E-1001/triage-priority",
@@ -214,8 +344,7 @@ def test_AC_004C_reject_override_without_reason(
         },
     )
 
-    assert store.list("triage_priority") == ()
-    assert store.list("patient_queue") == ()
+    assert store.records == before
     assert response.status_code == 422
     body = response.json()
     assert body["error"] == "override_reason_required"
@@ -225,6 +354,7 @@ def test_AC_004C_reject_override_without_reason(
 def test_AC_004C_control_accept_override_with_reason(
     client: Client, store: FakeRecordStore
 ):
+    seed_recommendation(store)
     response = put_json(
         client,
         "/api/v1/encounters/E-1001/triage-priority",
@@ -241,7 +371,52 @@ def test_AC_004C_control_accept_override_with_reason(
     assert len(store.list("triage_priority")) == 1
 
 
+def test_AC_004C_outside_empty_reason_changes_nothing(
+    client: Client, store: FakeRecordStore
+):
+    seed_recommendation(store)
+    before = records_snapshot(store)
+
+    response = put_json(
+        client,
+        "/api/v1/encounters/E-1001/triage-priority",
+        {
+            "physician_id": "P-001",
+            "recommended_priority": "priority-a",
+            "selected_priority": "priority-b",
+            "override_reason": "",
+        },
+    )
+
+    assert store.records == before
+    assert response.status_code == 422
+    assert response.json()["error"] == "override_reason_required"
+    assert response.json()["message"]
+
+
+def test_AC_004C_inside_one_character_reason_is_accepted(
+    client: Client, store: FakeRecordStore
+):
+    seed_recommendation(store)
+    response = put_json(
+        client,
+        "/api/v1/encounters/E-1001/triage-priority",
+        {
+            "physician_id": "P-001",
+            "recommended_priority": "priority-a",
+            "selected_priority": "priority-b",
+            "override_reason": "x",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["triage_priority"] == "priority-b"
+    assert response.json()["override_reason"] == "x"
+    assert len(store.list("triage_priority")) == 1
+
+
 def test_AC_005_reassess_waiting_patient(client: Client, store: FakeRecordStore):
+    seed_waiting_encounter(store)
     response = post_json(
         client,
         "/api/v1/encounters/E-1001/reassessments",
@@ -267,7 +442,34 @@ def test_AC_005_reassess_waiting_patient(client: Client, store: FakeRecordStore)
     assert len(store.list("triage_assessment")) == 1
 
 
+def test_AC_005_outside_encounter_not_in_queue_creates_nothing(
+    client: Client, store: FakeRecordStore
+):
+    seed_approved_priority(store)
+    before = records_snapshot(store)
+
+    response = post_json(
+        client,
+        "/api/v1/encounters/E-1001/reassessments",
+        {
+            "nurse_id": "N-001",
+            "assessment": {
+                "symptoms": [{"name": "chest pain", "changed": True}],
+                "vital_signs": [
+                    {"type": "heart_rate", "value": 125, "unit": "bpm"}
+                ],
+                "observations": ["condition changed"],
+            },
+        },
+    )
+
+    assert store.records == before
+    assert response.status_code == 409
+
+
 def test_AC_006_review_advisory_routing(client: Client, store: FakeRecordStore):
+    seed_routing_recommendation(store)
+    before = records_snapshot(store)
     response = client.get(
         "/api/v1/encounters/E-1001/routing-recommendations/latest"
     )
@@ -280,9 +482,25 @@ def test_AC_006_review_advisory_routing(client: Client, store: FakeRecordStore):
     assert body["automatic_transfer"] is False
     assert "considered_inputs" in body
     assert store.list("patient_transfer") == ()
+    assert store.records == before
+
+
+def test_AC_006_outside_unknown_routing_recommendation_creates_nothing(
+    client: Client, store: FakeRecordStore
+):
+    seed_approved_priority(store)
+    before = records_snapshot(store)
+
+    response = client.get(
+        "/api/v1/encounters/E-1001/routing-recommendations/latest"
+    )
+
+    assert store.records == before
+    assert response.status_code == 404
 
 
 def test_AC_007_preserve_human_authority(client: Client, store: FakeRecordStore):
+    seed_assessment(store)
     response = post_json(
         client,
         "/api/v1/encounters/E-1001/urgency-recommendations",
@@ -297,9 +515,29 @@ def test_AC_007_preserve_human_authority(client: Client, store: FakeRecordStore)
     assert store.list("patient_queue") == ()
 
 
+def test_AC_007_alternate_priority_is_not_approved_automatically(
+    client: Client, store: FakeRecordStore, monkeypatch: pytest.MonkeyPatch
+):
+    seed_assessment(store)
+    monkeypatch.setattr(api, "recommendation_provider", AlternatePriorityProvider())
+
+    response = post_json(
+        client,
+        "/api/v1/encounters/E-1001/urgency-recommendations",
+        {"assessment_id": "A-1001"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["suggested_priority"] == "priority-other"
+    assert response.json()["advisory"] is True
+    assert store.list("triage_priority") == ()
+    assert store.list("patient_queue") == ()
+
+
 def test_AC_008_use_priority_capacity_and_travel_time(
     client: Client, store: FakeRecordStore
 ):
+    seed_approved_priority(store)
     response = post_json(
         client,
         "/api/v1/encounters/E-1001/routing-recommendations",
@@ -324,6 +562,8 @@ def test_AC_008_use_priority_capacity_and_travel_time(
 def test_AC_009_continue_when_ml_unavailable(
     client: Client, store: FakeRecordStore, monkeypatch: pytest.MonkeyPatch
 ):
+    seed_assessment(store)
+    before = records_snapshot(store)
     monkeypatch.setattr(api, "recommendation_provider", UnavailableRecommendationProvider())
     response = post_json(
         client,
@@ -331,8 +571,8 @@ def test_AC_009_continue_when_ml_unavailable(
         {"assessment_id": "A-1001"},
     )
 
-    assert store.list("urgency_recommendation") == ()
-    assert store.list("triage_priority") == ()
+    assert store.records == before
+    assert store.get("triage_assessment", "A-1001") is not None
     assert response.status_code == 503
     body = response.json()
     assert body["error"] == "ml_unavailable"
@@ -342,6 +582,7 @@ def test_AC_009_continue_when_ml_unavailable(
 def test_AC_009_control_available_provider(
     client: Client, store: FakeRecordStore
 ):
+    seed_assessment(store)
     response = post_json(
         client,
         "/api/v1/encounters/E-1001/urgency-recommendations",
