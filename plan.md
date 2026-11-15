@@ -1,0 +1,121 @@
+ERFlow Implementation Plan
+
+Starting point
+
+This plan is based on spec.md, architecture.md, contracts.md, test_plan.md, the code skeleton, and the current tests on romina-spec. The starting suite has three failing tests. All slices are Not started.
+
+The existing tests cover parts of AC-001, AC-003, and AC-005. The remaining criteria do not have dedicated executable tests. A slice is complete when its listed tests pass, no previously passing test fails, and its listed behaviors are independently verified. A slice with no existing tests is not automatically complete.
+
+Slice 1 — Record a patient assessment
+
+Goal: Allow a nurse to submit and save an assessment through one API route.
+
+Spec sources: FR-001; AC-001; NFR-002, NFR-003; initial assessment flow in architecture.md.
+
+Criteria: AC-001.
+
+Test that should turn green: test_T_001_record_assessment.
+
+Skeleton to fill in: access_control.authorize, assessment.save_assessment, and the necessary Data Store operations get_role, get_records, and save_record; user_interface.save_assessment and POST /api/encounters/{encounter_id}/assessments.
+
+Depends on: None.
+
+Done when: The listed test passes, a synthetic assessment can be saved through the route with the contract response, and no previously passing test fails. The existing test calls the module directly, so the route also needs an independent check.
+
+Status: Not started.
+
+Slice 2 — Review an urgency recommendation
+
+Goal: Generate and display an advisory urgency recommendation with an explanation, without automatically assigning a final priority.
+
+Spec sources: FR-002, FR-003, FR-007; AC-002, AC-003, AC-009; NFR-001, NFR-004, NFR-005, NFR-007.
+
+Criteria: AC-002, AC-003, AC-009.
+
+Test that should turn green: test_T_003_view_explanation.
+
+Skeleton to fill in: recommendation.generate_recommendation, recommendation.get_recommendation, user_interface.generate_recommendation, and user_interface.get_recommendation; POST /api/encounters/{encounter_id}/recommendations and GET /api/encounters/{encounter_id}/recommendation.
+
+Depends on: Slice 1 for assessments, storage, and access foundations.
+
+Done when: The listed test passes, independent checks cover generation, display, and human control, and no previously passing test fails. A simulated provider can test the workflow but does not by itself fulfill the ML requirement in FR-007.
+
+Status: Not started.
+
+Slice 3 — Confirm or override a priority
+
+Goal: Allow an authorized physician to confirm a recommendation or override it with a reason.
+
+Spec sources: FR-004; AC-004, AC-005; NFR-001, NFR-002, NFR-003.
+
+Criteria: AC-004, AC-005.
+
+Test that should turn green: test_T_005_override_priority.
+
+Skeleton to fill in: priority_queue.record_priority, user_interface.record_priority, and POST /api/encounters/{encounter_id}/priority.
+
+Depends on: Slices 1 and 2.
+
+Done when: The listed test passes, independent checks cover confirmation, override reason, and queue update, and no previously passing test fails. Confirmation and override should be reviewed separately because the override adds a reason.
+
+Status: Not started.
+
+Slice 4 — View the queue and reassess a patient
+
+Goal: Show the waiting queue and support an updated assessment and advisory recommendation without automatically changing the clinical priority.
+
+Spec sources: FR-005, FR-007; AC-006, AC-007; NFR-004.
+
+Criteria: AC-006, AC-007.
+
+Tests that should turn green: None currently in the suite for these criteria.
+
+Skeleton to fill in: priority_queue.get_queue, user_interface.get_queue, and GET /api/queue; assessment.get_assessment, user_interface.get_assessment, and GET /api/encounters/{encounter_id}/assessment; reassessment behavior in assessment.save_assessment, recommendation.generate_recommendation, and the existing assessment and recommendation routes.
+
+Depends on: Slices 1–3.
+
+Done when: The full suite has no regressions and independent checks cover the queue, saved reassessment, updated recommendation, and unchanged clinical priority. Priority ordering must first be defined.
+
+Status: Not started.
+
+Slice 5 — Review capacity and routing
+
+Goal: Show facility capacity and an advisory routing recommendation with its inputs, without initiating a transfer.
+
+Spec sources: FR-006, FR-008; AC-008, AC-010.
+
+Criteria: AC-008, AC-010.
+
+Tests that should turn green: None currently in the suite for these criteria.
+
+Skeleton to fill in: data_store.get_facilities, routing.get_capacity, routing.review_routing, user_interface.get_capacity, and user_interface.review_routing; GET /api/facilities/capacity and POST /api/encounters/{encounter_id}/routing.
+
+Depends on: Slices 1, 3, and 4.
+
+Done when: The full suite has no regressions and independent checks cover capacity, the advisory result, its inputs, and no automatic transfer. The routing rule must first be defined.
+
+Status: Not started.
+
+Unassigned items
+
+Acceptance criteria: None.
+
+Failing tests: None.
+
+Contract functions and routes: None.
+
+Design questions
+
+Slice 1 needs a concrete data store and a way to provide existing synthetic encounters, users, and roles. SQLite with synthetic starter data is the chosen direction; the record structure, setup, and injection are not defined yet.
+
+Later slices need decisions about the ML model and explanation, priority ordering, routing rules, reassessment, and errors. The current documents do not define these details.
+
+Test issues
+
+test_T_001_record_assessment does not verify the encounter association required by AC-001.
+
+test_T_005_override_priority does not verify the queue update required by AC-005.
+
+The fixtures use get_records, but the record-kind convention and how encounters are established are not defined.
+
+Next action: Begin Slice 1 and make test_T_001_record_assessment pass.
