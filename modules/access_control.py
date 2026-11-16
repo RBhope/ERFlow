@@ -8,4 +8,7 @@ def authorize(user_id: str, action: str, store: DataStore) -> None:
     if action == "save_assessment" and role == "Triage Nurse":
         return
 
+    if action == "record_priority" and role == "Emergency Physician":
+        return
+
     raise ForbiddenError("This user is not authorized for this action.")
