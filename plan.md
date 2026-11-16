@@ -28,23 +28,23 @@ The existing tests cover parts of AC-001, AC-003, and AC-005. The remaining crit
 
 **Status:** Completed.
 
-## Slice 2 — Review an urgency recommendation
+## Slice 2 — View a saved recommendation
 
-**Goal:** Generate and display an advisory urgency recommendation with an explanation, without automatically assigning a final priority.
+**Goal:** Retrieve and display a saved advisory recommendation and its factors for an encounter.
 
-**Spec sources:** FR-002, FR-003, FR-007; AC-002, AC-003, AC-009; NFR-001, NFR-004, NFR-005, NFR-007.
+**Spec sources:** FR-003; AC-003; NFR-005.
 
-**Criteria:** AC-002, AC-003, AC-009.
+**Criteria:** AC-003, partially verified using a synthetic recommendation. Model-generated explanations remain future work.
 
 **Test that should turn green:** `test_T_003_view_explanation`.
 
-**Skeleton to fill in:** `recommendation.generate_recommendation`, `recommendation.get_recommendation`, `user_interface.generate_recommendation`, and `user_interface.get_recommendation`; `POST /api/encounters/{encounter_id}/recommendations` and `GET /api/encounters/{encounter_id}/recommendation`.
+**Skeleton to fill in:** `recommendation.get_recommendation`, `user_interface.get_recommendation`, and `GET /api/encounters/{encounter_id}/recommendation`.
 
-**Depends on:** Slice 1 for assessments, storage, and access foundations.
+**Depends on:** Slice 1 for storage and encounter foundations.
 
-**Done when:** The listed test passes, independent checks cover generation, display, and human control, and no previously passing test fails. A simulated provider can test the workflow but does not by itself fulfill the ML requirement in FR-007.
+**Done when:** The listed test passes, the route returns a saved synthetic recommendation with its advisory status and factors, and no previously passing test fails.
 
-**Status:** Not started.
+**Status:** Completed for synthetic recommendation retrieval.
 
 ## Slice 3 — Confirm or override a priority
 
@@ -64,21 +64,21 @@ The existing tests cover parts of AC-001, AC-003, and AC-005. The remaining crit
 
 **Status:** Not started.
 
-## Slice 4 — View the queue and reassess a patient
+## Slice 4 — Generate recommendations and support reassessment
 
-**Goal:** Show the waiting queue and support an updated assessment and advisory recommendation without automatically changing the clinical priority.
+**Goal:** Generate an advisory recommendation, show the waiting queue, and support reassessment without automatically changing the clinical priority.
 
-**Spec sources:** FR-005, FR-007; AC-006, AC-007; NFR-004.
+**Spec sources:** FR-002, FR-005, FR-007; AC-002, AC-006, AC-007, AC-009; NFR-001, NFR-004, NFR-007.
 
-**Criteria:** AC-006, AC-007.
+**Criteria:** AC-002, AC-006, AC-007, AC-009.
 
 **Tests that should turn green:** None currently in the suite for these criteria.
 
-**Skeleton to fill in:** `priority_queue.get_queue`, `user_interface.get_queue`, and `GET /api/queue`; `assessment.get_assessment`, `user_interface.get_assessment`, and `GET /api/encounters/{encounter_id}/assessment`; reassessment behavior in `assessment.save_assessment`, `recommendation.generate_recommendation`, and the existing assessment and recommendation routes.
+**Skeleton to fill in:** `recommendation.generate_recommendation`, `user_interface.generate_recommendation`, and `POST /api/encounters/{encounter_id}/recommendations`; `priority_queue.get_queue`, `user_interface.get_queue`, and `GET /api/queue`; `assessment.get_assessment`, `user_interface.get_assessment`, and `GET /api/encounters/{encounter_id}/assessment`; reassessment behavior in the existing assessment and recommendation functions and routes.
 
 **Depends on:** Slices 1–3.
 
-**Done when:** The full suite has no regressions and independent checks cover the queue, saved reassessment, updated recommendation, and unchanged clinical priority. Priority ordering must first be defined.
+**Done when:** The full suite has no regressions and independent checks cover recommendation generation, the queue, saved reassessment, an updated recommendation, and unchanged clinical priority. The ML model and priority ordering must first be defined. A simulated provider can test the workflow but does not by itself fulfill FR-007.
 
 **Status:** Not started.
 

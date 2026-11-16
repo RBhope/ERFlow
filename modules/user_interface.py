@@ -89,12 +89,31 @@ def generate_recommendation(request, encounter_id):
         )
     )
 
-
 def get_recommendation(request, encounter_id):
-    return _not_implemented(
-        lambda: recommendation.get_recommendation(encounter_id, "", None)
-    )
+    if request.method != "GET":
+        return JsonResponse(
+            {"error": "method_not_allowed", "message": "Use GET for this route."},
+            status=405,
+        )
 
+    user_id = request.headers.get("X-User-Id", "")
+
+    try:
+        result = recommendation.get_recommendation(
+            encounter_id, user_id, data_store
+        )
+    except NotFoundError:
+        return JsonResponse(
+            {"error": "not_found", "message": "Recommendation was not found."},
+            status=404,
+        )
+    except StorageError:
+        return JsonResponse(
+            {"error": "storage_error", "message": "Recommendation could not be retrieved."},
+            status=500,
+        )
+
+    return JsonResponse(result, status=200)
 
 def record_priority(request, encounter_id):
     return _not_implemented(
