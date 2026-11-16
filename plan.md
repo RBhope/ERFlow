@@ -56,13 +56,13 @@ The existing tests cover parts of AC-001, AC-003, and AC-005. The remaining crit
 
 **Test that should turn green:** `test_T_005_override_priority`.
 
-**Skeleton to fill in:** `priority_queue.record_priority`, `user_interface.record_priority`, and `POST /api/encounters/{encounter_id}/priority`.
+**Skeleton to fill in:** `access_control.authorize`, `priority_queue.record_priority`, `user_interface.record_priority`, and `POST /api/encounters/{encounter_id}/priority`.
 
 **Depends on:** Slices 1 and 2.
 
 **Done when:** The listed test passes, independent checks cover confirmation, override reason, and queue update, and no previously passing test fails. Confirmation and override should be reviewed separately because the override adds a reason.
 
-**Status:** Not started.
+**Status:** Partially complete. Confirmation and override are implemented, and queue update records are saved. The waiting view remains unimplemented in Slice 4.
 
 ## Slice 4 — Generate recommendations and support reassessment
 
@@ -118,4 +118,4 @@ Later slices need decisions about the ML model and explanation, priority orderin
 - `test_T_005_override_priority` does not verify the queue update required by AC-005.
 - The assessment test uses a mock store and does not explicitly set up an existing encounter. The SQLite route check used a synthetic encounter.
 
-**Next action:** Begin Slice 2 and make `test_T_003_view_explanation` pass.
+**Next action:** Complete the waiting view in Slice 4 and verify that it reflects saved priority decisions.

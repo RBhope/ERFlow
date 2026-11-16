@@ -116,9 +116,54 @@ def get_recommendation(request, encounter_id):
     return JsonResponse(result, status=200)
 
 def record_priority(request, encounter_id):
-    return _not_implemented(
-        lambda: priority_queue.record_priority(encounter_id, "", {}, None)
-    )
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "method_not_allowed", "message": "Use POST for this route."},
+            status=405,
+        )
+
+    try:
+        decision = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"error": "invalid_json", "message": "Provide a valid JSON object."},
+            status=400,
+        )
+
+    if not isinstance(decision, dict):
+        return JsonResponse(
+            {"error": "invalid_json", "message": "Provide a JSON object."},
+            status=400,
+        )
+
+    user_id = request.headers.get("X-User-Id", "")
+
+    try:
+        result = priority_queue.record_priority(
+            encounter_id, user_id, decision, data_store
+        )
+    except ForbiddenError:
+        return JsonResponse(
+            {"error": "forbidden", "message": "User is not authorized."},
+            status=403,
+        )
+    except NotFoundError as exc:
+        return JsonResponse(
+            {"error": "not_found", "message": str(exc)},
+            status=404,
+        )
+    except ValueError as exc:
+        return JsonResponse(
+            {"error": "invalid_decision", "message": str(exc)},
+            status=400,
+        )
+    except StorageError:
+        return JsonResponse(
+            {"error": "storage_error", "message": "Priority update could not be completed."},
+            status=500,
+        )
+
+    return JsonResponse(result, status=200)
 
 
 def get_queue(request):

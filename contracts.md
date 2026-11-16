@@ -28,6 +28,10 @@ If an assessment request does not include an `assessment_id`, the application ge
 
 The assessment route returns 201 after a successful save, 400 for a request that is not a JSON object, 403 for an unauthorized user, 404 for an unknown encounter, and 500 if storage fails. It accepts POST requests. Other request methods receive a 405 response.
 
+For priority decisions, the prototype stores a `priority` record under the encounter ID and a `queue` update under the shared key `waiting`. Each queue update contains the encounter ID and its clinician-selected priority. The waiting view and priority ordering will be handled in a later slice. The two records are saved separately; recovery from a storage failure between those saves remains open.
+
+The priority route accepts a physician's `confirm` or `override` action. Confirmation uses the saved recommendation. An override must include a different priority and a reason. The route returns 200 for a successful decision, 400 for invalid JSON or an invalid decision, 403 for an unauthorized user, 404 if the encounter or recommendation is missing, 405 for other methods, and 500 for a storage failure. The allowed priority levels and their ordering remain undefined.
+
 ## Public module functions
 
 The functions use the JSON-compatible data types defined below. `store` and `provider` are dependencies supplied to the functions. The table shows the intended results once the behavior is implemented.

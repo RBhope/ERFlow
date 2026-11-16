@@ -6,15 +6,15 @@ ERFlow is a proposed decision-support application for emergency department triag
 
 These modules are logical parts of one application, not separate deployed services.
 
-| Module | Responsibility | May depend on |
-| --- | --- | --- |
-| User Interface | Collect user actions and present information for triage and routing workflows. Supports FR-001–FR-006 and NFR-005. | Access Control, Assessment, Recommendation, Priority and Queue, Routing |
-| Access Control | Check whether a modeled user is authorized to perform an action. Supports NFR-002. | Data Store |
-| Assessment | Manage encounter assessments and reassessments. Supports FR-001, FR-005, AC-001, and AC-007. | Access Control, Data Store |
-| Recommendation | Generate advisory urgency recommendations and explanations. Supports FR-002, FR-003, FR-007, AC-007, and NFR-005. | Assessment, Data Store |
-| Priority and Queue | Manage clinician-selected priorities and the waiting-patient view. Supports FR-004, FR-005, and AC-004–AC-006. | Data Store |
-| Routing | Generate advisory facility recommendations using the required routing inputs. Supports FR-006, FR-008, AC-008, and AC-010. | Priority and Queue, Data Store |
-| Data Store | Save and retrieve prototype records. Supports AC-001, AC-004, AC-005, AC-007, and NFR-003. | None |
+| Module             | Responsibility                                                                                                             | May depend on                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| User Interface     | Collect user actions and present information for triage and routing workflows. Supports FR-001–FR-006 and NFR-005.         | Access Control, Assessment, Recommendation, Priority and Queue, Routing |
+| Access Control     | Check whether a modeled user is authorized to perform an action. Supports NFR-002.                                         | Data Store                                                              |
+| Assessment         | Manage encounter assessments and reassessments. Supports FR-001, FR-005, AC-001, and AC-007.                               | Access Control, Data Store                                              |
+| Recommendation     | Generate advisory urgency recommendations and explanations. Supports FR-002, FR-003, FR-007, AC-007, and NFR-005.          | Assessment, Data Store                                                  |
+| Priority and Queue | Manage clinician-selected priorities and the waiting-patient view. Supports FR-004, FR-005, and AC-004–AC-006.             | Access Control, Data Store                                              |
+| Routing            | Generate advisory facility recommendations using the required routing inputs. Supports FR-006, FR-008, AC-008, and AC-010. | Priority and Queue, Data Store                                          |
+| Data Store         | Save and retrieve prototype records. Supports AC-001, AC-004, AC-005, AC-007, and NFR-003.                                 | None                                                                    |
 
 Access Control checks authorization before role-specific actions. The application must not rely only on hiding or disabling a user-interface control to restrict access.
 
@@ -46,18 +46,18 @@ Access Control checks authorization before role-specific actions. The applicatio
 
 # Design Decisions
 
-| Decision | Reason |
-| --- | --- |
-| Organize ERFlow as one application with logical modules. | The requirements need coordinated functions but do not require separately deployed services. |
-| Use Python, Django, and SQLite for this prototype. Django templates are a proposed option for the user interface. | This stack supports a manageable course prototype. The team may revisit these choices. |
-| Consider scikit-learn for the ML component. | The specification requires ML-assisted recommendations, but the model and data have not been selected. |
-| Use synthetic patient data and sample capacity and travel-time inputs. | NFR-002 requires synthetic patient data. The routing requirements do not require live integrations. |
-| Check role-specific access before protected actions. | NFR-002 restricts actions to their modeled roles. |
-| Keep recommendations separate from clinical priority decisions. | FR-007 and NFR-001 preserve clinical authority. NFR-007 requires a separable recommendation function. |
-| Allow a simulated recommendation provider for testing. | NFR-007 requires a substitutable provider. A simulation alone does not satisfy the ML requirement in FR-007. |
-| Save assessments before requesting recommendations. | AC-001 and AC-007 require assessments to be saved. NFR-004 requires a successful save to remain available if recommendation generation fails. |
-| Associate assessments and clinical decisions with the encounter. | NFR-003 requires saved records to remain linked to the correct encounter. |
-| Display the priority, capacity, and travel-time inputs used for routing. | FR-008 and AC-010 identify these inputs. |
+| Decision                                                                                                          | Reason                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Organize ERFlow as one application with logical modules.                                                          | The requirements need coordinated functions but do not require separately deployed services.                                                  |
+| Use Python, Django, and SQLite for this prototype. Django templates are a proposed option for the user interface. | This stack supports a manageable course prototype. The team may revisit these choices.                                                        |
+| Consider scikit-learn for the ML component.                                                                       | The specification requires ML-assisted recommendations, but the model and data have not been selected.                                        |
+| Use synthetic patient data and sample capacity and travel-time inputs.                                            | NFR-002 requires synthetic patient data. The routing requirements do not require live integrations.                                           |
+| Check role-specific access before protected actions.                                                              | NFR-002 restricts actions to their modeled roles.                                                                                             |
+| Keep recommendations separate from clinical priority decisions.                                                   | FR-007 and NFR-001 preserve clinical authority. NFR-007 requires a separable recommendation function.                                         |
+| Allow a simulated recommendation provider for testing.                                                            | NFR-007 requires a substitutable provider. A simulation alone does not satisfy the ML requirement in FR-007.                                  |
+| Save assessments before requesting recommendations.                                                               | AC-001 and AC-007 require assessments to be saved. NFR-004 requires a successful save to remain available if recommendation generation fails. |
+| Associate assessments and clinical decisions with the encounter.                                                  | NFR-003 requires saved records to remain linked to the correct encounter.                                                                     |
+| Display the priority, capacity, and travel-time inputs used for routing.                                          | FR-008 and AC-010 identify these inputs.                                                                                                      |
 
 # Constraints and Known Limits
 
