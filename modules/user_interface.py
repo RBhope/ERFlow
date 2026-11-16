@@ -1,3 +1,7 @@
+import json
+
+from modules import ForbiddenError, NotFoundError, StorageError
+from modules import data_store
 from django.http import JsonResponse
 
 from modules import assessment
@@ -20,8 +24,55 @@ def _not_implemented(call):
 
 
 def save_assessment(request, encounter_id):
-    return _not_implemented(
-        lambda: assessment.save_assessment(encounter_id, "", {}, None)
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "method_not_allowed", "message": "Use POST for this route."},
+            status=405,
+        )
+
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"error": "invalid_json", "message": "Provide a valid JSON object."},
+            status=400,
+        )
+
+    if not isinstance(data, dict):
+        return JsonResponse(
+            {"error": "invalid_json", "message": "Provide a JSON object."},
+            status=400,
+        )
+
+    user_id = request.headers.get("X-User-Id", "")
+
+    try:
+        saved = assessment.save_assessment(
+            encounter_id, user_id, data, data_store
+        )
+    except ForbiddenError:
+        return JsonResponse(
+            {"error": "forbidden", "message": "User is not authorized."},
+            status=403,
+        )
+    except NotFoundError:
+        return JsonResponse(
+            {"error": "not_found", "message": "Encounter was not found."},
+            status=404,
+        )
+    except StorageError:
+        return JsonResponse(
+            {"error": "storage_error", "message": "Assessment could not be saved."},
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "encounter_id": encounter_id,
+            "assessment_id": saved["assessment_id"],
+            "assessment": saved,
+        },
+        status=201,
     )
 
 
